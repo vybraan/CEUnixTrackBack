@@ -1,4 +1,5 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify,session
+from flask_session import Session
 import bcrypt
 from datetime import datetime
 import bcrypt
@@ -8,13 +9,16 @@ from models import db
 from models.user import User
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'my_secret_key'
+app.config['SESSION_TYPE'] = 'filesystem'
+Session(app)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 db.init_app(app)
 
 
 @app.route('/')
 def hello():
-    return 'Hello, Flask!'
+    return jsonify('Hello, Flask!')
 
 
 ####################################################################
@@ -34,6 +38,7 @@ def login():
             if bcrypt.checkpw(password.encode('utf-8'), user.password.encode('utf-8')):
                 # If the passwords match, login is successful
                 token = generate_auth_token(user.username)
+                session['username'] = user.username
                 return jsonify(token=token), 200
 
     # If login fails, return an appropriate error response
@@ -96,7 +101,7 @@ def signup():
         # Add the new user to the database
         db.session.add(new_user)
         db.session.commit()
-
+        
         return jsonify(message='User created successfully'), 201
     except Exception as e:
         return jsonify(error='Failed to create user'), 500
@@ -120,6 +125,6 @@ with app.app_context():
 
 # db.init_app(app)
 if __name__ == '__main__':
-    app.run(debug=True)
-    app.run(host='0.0.0.0')
+    app.run(debug=True,host='0.0.0.0')
+    # app.run()
 
