@@ -22,7 +22,7 @@ def hello():
 
 
 ####################################################################
-@app.route('/login', methods=['POST'])
+@app.route('/api/v1/login', methods=['POST'])
 def login():
     # Retrieve login credentials from the request
     username = request.json.get('username')
@@ -62,7 +62,7 @@ def generate_auth_token(username):
     return token
 
 ####################################################################
-@app.route('/signup', methods=['POST'])
+@app.route('/api/v1/signup', methods=['POST'])
 def signup():
 
     # Retrieve sign-up data from the request
