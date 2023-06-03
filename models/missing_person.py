@@ -1,6 +1,5 @@
 from datetime import datetime
 from models import db
-import os
 
 
 class MissingPerson(db.Model):
@@ -15,16 +14,3 @@ class MissingPerson(db.Model):
     lastKnownLocation = db.Column(db.String(100), nullable=False)
     dateOfDisappearance = db.Column(
         db.DateTime, nullable=False, default=datetime.utcnow)
-
-    def save_image(self, image_file):
-        if image_file:
-            # Generate a filename based on the missing person's ID, name, and date
-            timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
-            filename = f"{self.id}_{self.name}_{timestamp}.png"
-
-            # Save the image file to a folder (e.g., 'images')
-            image_path = os.path.join("images/people/missing", filename)
-            image_file.save(image_path)
-
-            # Update the image field in the model instance
-            self.image = image_path

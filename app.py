@@ -14,20 +14,21 @@ from models.missing_person import MissingPerson
 from werkzeug.security import check_password_hash
 import os
 
+from werkzeug.utils import secure_filename
+import os
+
+# Specify the allowed file extensions
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+# Specify the directory where the uploaded images will be saved
+UPLOAD_FOLDER = '/images/people/missing'
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'my_secret_key'
-app = Flask(__name__)
-
-# Set the JWT secret key
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['JWT_SECRET_KEY'] = 'your_secret_key'
-
-# Set the JWT realm
 app.config['JWT_DEFAULT_REALM'] = 'login required'
-
-# Other JWT configuration options can be set as needed
-# app.config['JWT_EXPIRATION_DELTA'] = datetime.timedelta(hours=2)
-# ...
+app.config['JWT_EXPIRATION_DELTA'] = datetime.timedelta(hours=36)
 
 
 app.config['SESSION_TYPE'] = 'filesystem'
@@ -192,25 +193,28 @@ def get_missing_persons():
 
 
 @app.route('/api/v1/missing-persons', methods=['POST'])
-# @jwt_required()
 def create_missing_person():
-    print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
     # Retrieve the missing person data from the request
-    print(request.json.get('name'))
-    print(request.json.get('name'))
-    print(request.files.get('image'))
-    print(request.form.get('image'))
-    print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
-
     name = request.json.get('name')
     age = request.json.get('age')
     gender = request.json.get('gender')
     image = request.files.get('image')
     description = request.json.get('description')
     last_known_location = request.json.get('lastKnownLocation')
-    image = "john_caviziel.png"
+    date_of_disappearance = request.json.get('dateOfDisappearance')
 
     # Validate the missing person data (check if required fields are present)
+    if not name or not age or not gender or not description or not last_known_location or not image:
+        return jsonify(error='Missing required fields'), 400
+
+    # Check if the file extension is allowed
+    if not allowed_file(image.filename):
+        return jsonify(error='Invalid file type'), 400
+
+    # Generate a secure filename and save the image to the server
+    filename = secure_filename(image.filename)
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    image.save(filepath)
 
     # Create a new missing person record
     missing_person = MissingPerson(
@@ -219,11 +223,11 @@ def create_missing_person():
         gender=gender,
         description=description,
         lastKnownLocation=last_known_location,
-        image=image
+        dateOfDisappearance=date_of_disappearance
     )
 
     # Save the image using the missing person's ID
-    missing_person.save_image(image)
+    save_image(missing_person, image)
 
     # Add the missing person record to the database
     db.session.add(missing_person)
@@ -232,53 +236,31 @@ def create_missing_person():
     return jsonify(message='Missing person record created successfully'), 201
 
 
+def save_image(missing_person, image_file):
+    if image_file:
+        # Generate a filename based on the missing person's ID, name, and date
+        timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
+        filename = f"{missing_person.id}_{missing_person.name}_{timestamp}.png"
+
+        # Save the image file to a folder (e.g., 'images')
+        image_path = os.path.join("images/people/missing", filename)
+        image_file.save(image_path)
+
+        # Update the image field in the missing person model instance
+        missing_person.image = image_path
+
+
+def allowed_file(filename):
+    # Check if the file extension is allowed
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
 # Create all tables and flush the users table
 with app.app_context():
     db.create_all()
     db.session.commit()
 
-#
-# with app.app_context():
-#     def create_missing_person(name, age, gender, image, description, lastKnownLocation, dateOfDisappearance):
-#         missing_person = MissingPerson(
-#             name=name,
-#             age=age,
-#             gender=gender,
-#             image=image,
-#             description=description,
-#             lastKnownLocation=lastKnownLocation,
-#             dateOfDisappearance=dateOfDisappearance
-#         )
-#         db.session.add(missing_person)
-#         db.session.commit()
-#
-#     missing_persons = [
-#         {
-#             'name': 'John Doe',
-#             'age': 30,
-#             'gender': 'Male',
-#             'image': 'john_doe.jpg',
-#             'description': 'Tall and slender, brown hair',
-#             'lastKnownLocation': 'City A',
-#             'dateOfDisappearance': ddt(2023, 5, 25)
-#         },
-#         {
-#             'name': 'Jane Smith',
-#             'age': 25,
-#             'gender': 'Female',
-#             'image': 'jane_smith.jpg',
-#             'description': 'Short and petite, blonde hair',
-#             'lastKnownLocation': 'City B',
-#             'dateOfDisappearance': ddt(2023, 5, 24)
-#         },
-#         # Add more missing persons here
-#     ]
-#
-#     for person in missing_persons:
-#         create_missing_person(**person)
-#
-#     print("Missing persons added successfully.")
-#
 
 # db.init_app(app)
 if __name__ == '__main__':
